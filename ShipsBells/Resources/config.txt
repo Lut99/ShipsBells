@@ -1,0 +1,23 @@
+###############################################
+### CONFIG FILE for SHIP'S BELL application ###
+###               by Lut99                  ###
+###                                         ###
+### Change the values to set the values for ###
+### the application when it boots. One can  ###
+### make a comment by typing '#' followed   ###
+### by the comment. Everything on a line    ###
+### after the first '#' is ignored.         ###
+###                                         ###
+### NOTE that the program replaces the      ###
+### entire line when updating values, so    ###
+### any comments made on it may be lost.    ###
+###############################################
+
+# Enables or disables notifications whenever a bell is rang (true/false)
+notifications = %%%NOTIFICATION_VALUE%%%
+
+# Sets the default languages to use for the application. Options are "en_gb" and "nl_nl".
+locale = %%%LOCALE_VALUE%%%
+
+# Sets the default watch system to use. Options are "traditional" and "dutch".
+watchsystem = %%%WATCHSYSTEM_VALUE%%%
