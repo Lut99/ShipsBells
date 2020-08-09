@@ -131,6 +131,7 @@ namespace ShipsBells
             7500
         };
 
-        public static string ConfigPath = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ship's Bells/config.txt");
+        public static string ConfigDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ship's Bells");
+        public static string ConfigPath = ConfigDir + "/config.txt";
     }
 }

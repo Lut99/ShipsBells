@@ -15,6 +15,7 @@ namespace ShipsBells
     {
         private int watch;
         private int n_bells;
+        private bool muted;
         private bool notifications;
         private Constants.Locale language;
         private Constants.WatchSystem watchsystem;
@@ -28,6 +29,7 @@ namespace ShipsBells
             // Set the language & watchsystem to default
             this.language = Constants.Locale.en_gb;
             this.watchsystem = Constants.WatchSystem.Traditional;
+            this.muted = false;
             this.notifications = false;
 
             // Overwrite any settings written
@@ -171,6 +173,16 @@ namespace ShipsBells
 
         public void ShipsBellsContext_Elapsed(Object obj, System.Timers.ElapsedEventArgs e)
         {
+            // FIRST: Check if the system didn't hibernate or anything funky like that, and make sure that it's actually time to roll
+            DateTime now = DateTime.Now;
+            if (now.Minute != 0 || now.Minute != 30 || now.Second != 0)
+            {
+                // Resync to match
+                this.timer.Interval = (new DateTime(now.Year, now.Month, now.Day, now.Minute < 30 ? now.Hour : now.Hour + 1, now.Minute < 30 ? 30 : 0, 0) - now).TotalMilliseconds;
+                // Don't actually continue
+                return;
+            }
+
             // Reset the timer to match the passing of seconds
             this.timer.Interval = 30 * 60 * 1000;
 
@@ -178,14 +190,16 @@ namespace ShipsBells
             if (++this.n_bells == 9) { this.n_bells = 1; }
 
             // Compute which watch
-            DateTime now = DateTime.Now;
             this.watch = Constants.GetWatchTraditional(this.watchsystem, now);
 
-            // Next, ring the bells
-            this.bells[this.n_bells - 1].Play();
+            // Next, ring the bells if not muted
+            if (!this.muted)
+            {
+                this.bells[this.n_bells - 1].Play();
+            }
 
             // Optionally show a notification if needed
-            if (((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[0]).Checked)
+            if (this.notifications)
             {
                 string text = Localization.NotificationText[this.language][this.n_bells - 1] + Localization.WatchText[this.language][this.watchsystem][this.watch];
                 this.icon.ShowBalloonTip(Constants.BellDurations[this.n_bells - 1], "Ding-Ding!", text, ToolTipIcon.None);
@@ -195,11 +209,19 @@ namespace ShipsBells
             this.icon.Text = Constants.Capitalize(Localization.WatchText[this.language][this.watchsystem][this.watch]) + Localization.TooltipText[this.language][this.n_bells - 1];
         }
 
+        public void ShipsBellsContext_ToggleMuted(Object obj, EventArgs e)
+        {
+            this.muted = !this.muted;
+            ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[0]).Checked = this.muted;
+            
+            // Don't update the config, as this option is temporary
+        }
+
         public void ShipsBellsContext_ToggleNotifications(Object obj, EventArgs e)
         {
             this.notifications = !this.notifications;
-            ((ToolStripMenuItem) this.icon.ContextMenuStrip.Items[0]).Checked = this.notifications;
-
+            ((ToolStripMenuItem) this.icon.ContextMenuStrip.Items[1]).Checked = this.notifications;
+            
             // Update the configuration file
             if (File.Exists(Constants.ConfigPath))
             {
@@ -207,6 +229,9 @@ namespace ShipsBells
             }
             else
             {
+                // Make sure the directory exists
+                if (!Directory.Exists(Constants.ConfigDir)) { Directory.CreateDirectory(Constants.ConfigDir); }
+
                 // Create the file, filling in the current settings
                 string file = Properties.Resources.config;
                 file = file.Replace("%%%NOTIFICATION_VALUE%%%", this.notifications.ToString());
@@ -219,9 +244,9 @@ namespace ShipsBells
         public void ShipsBellsContext_ChangeLanguage(Object obj, EventArgs e)
         {
             // Find which of the languages is, well, selected
-            for (int i = 0; i < ((ToolStripMenuItem) this.icon.ContextMenuStrip.Items[1]).DropDownItems.Count; i++)
+            for (int i = 0; i < ((ToolStripMenuItem) this.icon.ContextMenuStrip.Items[3]).DropDownItems.Count; i++)
             {
-                if (obj.ToString() == ((ToolStripMenuItem) ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[1]).DropDownItems[i]).ToString())
+                if (obj.ToString() == ((ToolStripMenuItem) ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[3]).DropDownItems[i]).ToString())
                 {
                     // Select this language
                     this.language = (Constants.Locale) i;
@@ -250,17 +275,17 @@ namespace ShipsBells
         public void ShipsBellsContext_ChangeWatchSystem(Object obj, EventArgs e)
         {
             // Find which of the languages is, well, selected
-            for (int i = 0; i < ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[2]).DropDownItems.Count; i++)
+            for (int i = 0; i < ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[4]).DropDownItems.Count; i++)
             {
-                if (obj.ToString() == ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[2]).DropDownItems[i]).ToString())
+                if (obj.ToString() == ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[4]).DropDownItems[i]).ToString())
                 {
                     // Select this watchsystem
                     this.watchsystem = (Constants.WatchSystem) i;
-                    ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[2]).DropDownItems[i]).Checked = true;
+                    ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[4]).DropDownItems[i]).Checked = true;
                 }
                 else
                 {
-                    ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[2]).DropDownItems[i]).Checked = false;
+                    ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[4]).DropDownItems[i]).Checked = false;
                 }
             }
 
@@ -292,19 +317,22 @@ namespace ShipsBells
         {
             // Create the contextmenustrip
             this.icon.ContextMenuStrip.Items.Clear();
+            this.icon.ContextMenuStrip.Items.Add(Localization.ContextMenuText.Mute[this.language], null, ShipsBellsContext_ToggleMuted);
+            ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[0]).Checked = this.muted;
             this.icon.ContextMenuStrip.Items.Add(Localization.ContextMenuText.Notifications[this.language], null, ShipsBellsContext_ToggleNotifications);
-            ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[0]).Checked = this.notifications;
+            ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[1]).Checked = this.notifications;
+            this.icon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
             this.icon.ContextMenuStrip.Items.Add(Localization.ContextMenuText.Language[this.language], null, null);
             for (int i = 0; i < Enum.GetNames(typeof(Constants.Locale)).Length; i++)
             {
-                ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[1]).DropDownItems.Add(Localization.ContextMenuText.Languages[this.language][i], null, ShipsBellsContext_ChangeLanguage);
-                ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[1]).DropDownItems[i]).Checked = i == (int) this.language;
+                ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[3]).DropDownItems.Add(Localization.ContextMenuText.Languages[this.language][i], null, ShipsBellsContext_ChangeLanguage);
+                ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[3]).DropDownItems[i]).Checked = i == (int) this.language;
             }
             this.icon.ContextMenuStrip.Items.Add(Localization.ContextMenuText.WatchSystem[this.language], null, null);
             for (int i = 0; i < Enum.GetNames(typeof(Constants.WatchSystem)).Length; i++)
             {
-                ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[2]).DropDownItems.Add(Localization.ContextMenuText.WatchSystems[this.language][i], null, ShipsBellsContext_ChangeWatchSystem);
-                ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[2]).DropDownItems[i]).Checked = i == (int)this.watchsystem;
+                ((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[4]).DropDownItems.Add(Localization.ContextMenuText.WatchSystems[this.language][i], null, ShipsBellsContext_ChangeWatchSystem);
+                ((ToolStripMenuItem)((ToolStripMenuItem)this.icon.ContextMenuStrip.Items[4]).DropDownItems[i]).Checked = i == (int)this.watchsystem;
             }
             this.icon.ContextMenuStrip.Items.Add(new ToolStripSeparator());
             this.icon.ContextMenuStrip.Items.Add(Localization.ContextMenuText.Exit[this.language], null, ShipsBellsContext_Exit);

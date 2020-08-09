@@ -165,6 +165,12 @@ namespace ShipsBells
 
         public class ContextMenuText
         {
+            public static Dictionary<Constants.Locale, string> Mute = new Dictionary<Constants.Locale, string>()
+            {
+                { Constants.Locale.en_gb, "Mute" },
+                { Constants.Locale.nl_nl, "Zet geluid uit" }
+            };
+
             public static Dictionary<Constants.Locale, string> Notifications = new Dictionary<Constants.Locale, string>()
             {
                 { Constants.Locale.en_gb, "Enable notifications" },
